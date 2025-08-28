@@ -705,9 +705,12 @@ const AdminPage = () => {
           <p className="text-slate-600 font-['Inter'] text-lg">
             Create and manage daily movie challenges
           </p>
+<<<<<<< HEAD
           <p className="text-slate-500 font-['Inter'] text-sm mt-2">
             Access: /admin0424
           </p>
+=======
+>>>>>>> 68fbbe1f7409e9f524a1bca1c7933a7f0012ee96
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-4xl mx-auto border border-slate-200 mb-8">
