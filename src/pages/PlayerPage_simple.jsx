@@ -231,6 +231,19 @@ export default function PlayerPageSimple() {
     }));
   }
 
+  function getImageFeedback(images, originalOrder) {
+    return images.map((img, index) => {
+      const isCorrect = img.id === originalOrder[index]?.id;
+      const correctPosition = originalOrder.findIndex(orig => orig.id === img.id);
+      return {
+        ...img,
+        isCorrect,
+        correctPosition,
+        currentPosition: index
+      };
+    });
+  }
+
   function checkOrder() {
     setAttempts((a) => a + 1);
     
@@ -369,7 +382,7 @@ export default function PlayerPageSimple() {
             className="flex items-center bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-lg text-sm transition-colors"
           >
             <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 012 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             Stats
           </button>
@@ -417,32 +430,68 @@ export default function PlayerPageSimple() {
                 strategy={rectSortingStrategy}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                  {images.map((img, idx) => (
-                    <div key={img.id} className="group relative animate-float" style={{ animationDelay: `${idx * 0.1}s` }}>
-                      <div className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-full flex items-center justify-center text-lg font-semibold z-10 shadow-lg font-['Inter'] transition-all duration-300 group-hover:scale-110">
-                        {idx + 1}
-                      </div>
-                      
-                      <div className="relative">
-                        <DraggableImage
-                          id={img.id}
-                          image={img.url}
-                          alt={img.alt}
-                          onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
-                        />
+                  {images.map((img, idx) => {
+                    // Calculate feedback for this image
+                    const isCorrect = status === 'bad' && img.id === originalOrder[idx]?.id;
+                    const isIncorrect = status === 'bad' && img.id !== originalOrder[idx]?.id;
+                    
+                    return (
+                      <div key={img.id} className="group relative animate-float" style={{ animationDelay: `${idx * 0.1}s` }}>
+                        {/* Position number badge with feedback styling */}
+                        <div className={`absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-lg font-semibold z-10 shadow-lg font-['Inter'] transition-all duration-300 group-hover:scale-110 ${
+                          isCorrect 
+                            ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' 
+                            : isIncorrect 
+                              ? 'bg-gradient-to-br from-red-500 to-red-600 text-white'
+                              : 'bg-gradient-to-br from-blue-600 to-purple-600 text-white'
+                        }`}>
+                          {idx + 1}
+                        </div>
                         
-                        {/* Fullscreen icon */}
-                        <button
-                          className="absolute top-2 right-2 bg-black/40 hover:bg-blue-600 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                          onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
-                        >
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
-                          </svg>
-                        </button>
+                        {/* Feedback border for correct/incorrect positioning */}
+                        <div className={`relative ${
+                          isCorrect 
+                            ? 'ring-4 ring-green-400 ring-opacity-75 rounded-lg' 
+                            : isIncorrect 
+                              ? 'ring-4 ring-red-400 ring-opacity-75 rounded-lg'
+                              : ''
+                        }`}>
+                          <DraggableImage
+                            id={img.id}
+                            image={img.url}
+                            alt={img.alt}
+                            onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
+                          />
+                          
+                          {/* Correct position indicator for incorrect images */}
+                          {isIncorrect && (
+                            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-red-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
+                              Should be #{originalOrder.findIndex(orig => orig.id === img.id) + 1}
+                            </div>
+                          )}
+                          
+                          {/* Correct checkmark for correct images */}
+                          {isCorrect && (
+                            <div className="absolute -bottom-2 -right-2 bg-green-500 text-white rounded-full p-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                          
+                          {/* Fullscreen icon */}
+                          <button
+                            className="absolute top-2 right-2 bg-black/40 hover:bg-blue-600 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                            onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
+                          >
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <DragOverlay>
@@ -460,13 +509,74 @@ export default function PlayerPageSimple() {
             </DndContext>
           </main>
 
+          {/* Solution Reveal - Show when game is lost */}
+          {status === 'bad' && attempts >= MAX_ATTEMPTS && (
+            <div className="bg-slate-800/90 backdrop-blur-sm rounded-xl p-6 mb-6 border border-slate-600 max-w-6xl mx-auto">
+              <div className="text-center mb-4">
+                <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center">
+                  <svg className="w-6 h-6 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  Correct Order Revealed
+                </h3>
+                <p className="text-slate-300">Here's how the scenes should have been arranged:</p>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {originalOrder.map((img, idx) => (
+                  <div key={img.id} className="relative group">
+                    {/* Correct position badge */}
+                    <div className="absolute -top-3 -left-3 w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-full flex items-center justify-center text-lg font-semibold z-10 shadow-lg">
+                      {idx + 1}
+                    </div>
+                    
+                    {/* Solution image with green border */}
+                    <div className="relative ring-2 ring-green-400 ring-opacity-75 rounded-lg overflow-hidden">
+                      <img
+                        src={img.url}
+                        alt={img.alt}
+                        className="w-full h-48 object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                        onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
+                      />
+                      
+                      {/* Correct indicator */}
+                      <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      
+                      {/* Scene description if available */}
+                      {img.alt && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                          <p className="text-white text-sm font-medium">{img.alt}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="text-center mt-4">
+                <p className="text-slate-400 text-sm">
+                  {source === 'firestore' && puzzle?.title && `Movie: ${puzzle.title}`}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Game Controls */}
           <footer className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center gap-4">
             {/* Status Message */}
-            <div className={`relative px-6 py-3 rounded-lg text-xl font-bold text-center transition-all duration-500
-              ${status === 'ok' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white animate-glow' : 
-                status === 'bad' ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white animate-pulse-border' : 
-                'bg-white/10 backdrop-blur-sm text-white'}
+            <div className={`
+              flex items-center justify-between p-4 rounded-lg transition-all duration-500 
+              ${status === 'ok' 
+                ? 'bg-gradient-to-r from-green-600/90 to-emerald-600/90 text-white shadow-lg shadow-green-500/25' 
+                : status === 'bad' 
+                  ? attempts >= MAX_ATTEMPTS 
+                    ? 'bg-gradient-to-r from-red-600/90 to-red-700/90 text-white shadow-lg shadow-red-500/25'
+                    : 'bg-gradient-to-r from-yellow-600/90 to-orange-600/90 text-white shadow-lg shadow-yellow-500/25'
+                  : 'bg-white/10 backdrop-blur-sm text-white'}
             `}>
               {status === 'ok' ? (
                 <div className="flex items-center justify-between w-full">
@@ -487,13 +597,13 @@ export default function PlayerPageSimple() {
                   </button>
                 </div>
               ) : status === 'bad' ? (
-                <div className="flex items-center">
+                <div className="flex items-center w-full">
                   <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                   {attempts >= MAX_ATTEMPTS ? (
                     <div className="flex items-center justify-between w-full">
-                      <span>Out of attempts! Try again tomorrow.</span>
+                      <span>Game Over! Check the solution above.</span>
                       <button
                         onClick={() => setShowShareResults(true)}
                         className="bg-gradient-to-r from-slate-500 to-slate-600 text-white text-sm px-3 py-1 rounded-lg flex items-center ml-2"
@@ -505,7 +615,11 @@ export default function PlayerPageSimple() {
                       </button>
                     </div>
                   ) : (
-                    "Not quite — try again!"
+                    <span>
+                      Some images are in the wrong position! 
+                      <span className="text-green-300 font-semibold"> Green borders</span> = correct, 
+                      <span className="text-red-300 font-semibold"> red borders</span> = wrong position
+                    </span>
                   )}
                 </div>
               ) : (
