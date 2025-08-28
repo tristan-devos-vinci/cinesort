@@ -699,9 +699,20 @@ const AdminPage = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-slate-800 font-['Orbitron'] mb-4">
-            Cinema Puzzle Studio
-          </h1>
+          <div className="flex items-center justify-center mb-4">
+            <a 
+              href="/"
+              className="absolute left-4 top-4 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded-lg text-sm transition-colors flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Game
+            </a>
+            <h1 className="text-4xl font-bold text-slate-800 font-['Orbitron']">
+              Cinema Puzzle Studio
+            </h1>
+          </div>
           <p className="text-slate-600 font-['Inter'] text-lg">
             Create and manage daily movie challenges
           </p>

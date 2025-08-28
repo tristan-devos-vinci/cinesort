@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '../utils/css';
 
-const DraggableImage = ({ id, image, alt }) => {
+const DraggableImage = ({ id, image, alt, onClick }) => {
   const {
     attributes,
     listeners,
@@ -36,13 +36,14 @@ const DraggableImage = ({ id, image, alt }) => {
         ${isDragging ? 'opacity-50 scale-105 shadow-2xl' : ''}
       `}
     >
-      {/* Image container */}
+      {/* Image container - no text overlay */}
       <div className="relative overflow-hidden">
         <img
           src={image}
           alt={alt}
           className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
           draggable={false}
+          onClick={onClick}
         />
         
         {/* Subtle overlay on hover */}
@@ -56,12 +57,7 @@ const DraggableImage = ({ id, image, alt }) => {
         </div>
       </div>
       
-      {/* Text container */}
-      <div className="p-4 bg-white">
-        <p className="text-sm text-gray-700 font-medium text-center leading-relaxed font-['Inter']">
-          {alt}
-        </p>
-      </div>
+      {/* REMOVED: Text container that showed the alt text */}
       
       {/* Dragging state overlay */}
       {isDragging && (

@@ -251,9 +251,10 @@ button:focus-visible {
   border-radius: 50%;
 }
 
+/* Remove or comment out these navbar-related styles: */
+
+/*
 .nav-link {
-  @apply flex items-center text-gray-300 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300;
-  @apply hover:text-white hover:bg-white/10 active:scale-95;
   @apply relative overflow-hidden;
 }
 
@@ -266,12 +267,12 @@ button:focus-visible {
   @apply w-full;
 }
 
-/* Add a subtle film-related pattern for the navbar */
 .nav-film-pattern {
   background-image: url("data:image/svg+xml,%3Csvg width='20' height='100%' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='0' y1='0' x2='20' y2='0' stroke='%232d3748' stroke-width='1'/%3E%3C/svg%3E");
   background-repeat: repeat;
   opacity: 0.1;
 }
+*/
 
 /* Add to the end of your CSS file */
 

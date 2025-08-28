@@ -24,6 +24,9 @@ import DraggableImage from '../components/DraggableImage';
 import Lightbox from '../components/Lightbox';
 import StatsModal from '../components/StatsModal';
 import ShareResults from '../components/ShareResults';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import { useAuth } from '../hooks/useAuth';
 
 function shuffleArray(arr) {
   const a = arr.slice();
@@ -62,6 +65,8 @@ export default function PlayerPageSimple() {
   });
   const [showShareResults, setShowShareResults] = useState(false);
   const [puzzle, setPuzzle] = useState(null);
+
+  const { user } = useAuth();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -269,6 +274,14 @@ export default function PlayerPageSimple() {
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-800 py-6 px-4">
       {/* Background film strip effect */}
@@ -278,7 +291,23 @@ export default function PlayerPageSimple() {
 
       {/* Game Header */}
       <header className="relative z-10 mb-6 text-center max-w-5xl mx-auto w-full">
-        <div className="flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center relative">
+          {/* Admin logout button - top right corner */}
+          {user && (
+            <button
+              onClick={handleLogout}
+              className="absolute top-0 right-0 bg-red-500/80 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm transition-colors flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign Out
+            </button>
+          )}
+          
+          <h1 className="text-4xl font-bold text-white mb-1 font-['Orbitron']">
+            CINE SORT
+          </h1>
           <p className="text-slate-300 text-lg font-['Inter'] mb-3 max-w-md">
             Arrange the scenes in chronological order from earliest to latest
           </p>
@@ -401,11 +430,6 @@ export default function PlayerPageSimple() {
                           alt={img.alt}
                           onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
                         />
-                        
-                        {/* Scene title overlay */}
-                        <div className="absolute bottom-0 inset-x-0 bg-black/70 backdrop-blur-sm p-3 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                          <p className="text-white text-center text-sm font-medium">{img.alt}</p>
-                        </div>
                         
                         {/* Fullscreen icon */}
                         <button
