@@ -15,7 +15,7 @@ export default function ShareResults({ attempts, maxAttempts, title, onClose }) 
       : '🎬 ❌ 🎥';
     
     // Format similar to Wordle
-    return `CineSort ${todayDate} - ${won ? `Solved in ${attempts}/${maxAttempts}` : 'Failed'} attempts\n\n${resultEmojis}\n\nPlay at cinesort.com`;
+    return `CineSort ${todayDate} - ${won ? `Solved in ${attempts}/${maxAttempts}` : 'Failed'} attempts\n\n${resultEmojis}\n\nPlay at cinesort.wtf`;
   };
 
   const shareText = generateResultText();
