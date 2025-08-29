@@ -15,5 +15,21 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Improve drag sensitivity for mobile
+      const sensors = useSensors(
+        useSensor(PointerSensor, {
+          activationConstraint: {
+            distance: 8, // Increase for better mobile experience
+          }
+        }),
+        useSensor(TouchSensor, {
+          activationConstraint: {
+            delay: 200,
+            tolerance: 8,
+          }
+        })
+      );
+    </script>
   </body>
 </html>

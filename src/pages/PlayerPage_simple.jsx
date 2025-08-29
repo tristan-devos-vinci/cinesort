@@ -463,13 +463,6 @@ export default function PlayerPageSimple() {
                             onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
                           />
                           
-                          {/* Correct position indicator for incorrect images */}
-                          {isIncorrect && (
-                            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-red-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
-                              Should be #{originalOrder.findIndex(orig => orig.id === img.id) + 1}
-                            </div>
-                          )}
-                          
                           {/* Correct checkmark for correct images */}
                           {isCorrect && (
                             <div className="absolute -bottom-2 -right-2 bg-green-500 text-white rounded-full p-1">
@@ -618,7 +611,7 @@ export default function PlayerPageSimple() {
                     <span>
                       Some images are in the wrong position! 
                       <span className="text-green-300 font-semibold"> Green borders</span> = correct, 
-                      <span className="text-red-300 font-semibold"> red borders</span> = wrong position
+                      <span className="text-red-300 font-semibold"> red borders</span> = incorrect
                     </span>
                   )}
                 </div>
