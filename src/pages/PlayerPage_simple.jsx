@@ -65,6 +65,8 @@ export default function PlayerPageSimple() {
   });
   const [showShareResults, setShowShareResults] = useState(false);
   const [puzzle, setPuzzle] = useState(null);
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [availableDates, setAvailableDates] = useState([]);
 
   const { user } = useAuth();
 
@@ -76,19 +78,42 @@ export default function PlayerPageSimple() {
     })
   );
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  // Load available puzzle dates
+  const loadAvailableDates = useCallback(async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const today = new Date().toISOString().slice(0, 10);
       const q = query(
         collection(db, 'puzzles'),
-        where('date', '==', today),
+        where('date', '<=', today)
+      );
+      const snap = await getDocs(q);
+      
+      if (!snap.empty) {
+        const dates = snap.docs
+          .map(doc => doc.data().date)
+          .filter(date => date)
+          .sort((a, b) => b.localeCompare(a)); // Sort newest first
+        
+        setAvailableDates(dates);
+      }
+    } catch (err) {
+      console.error('Failed to load available dates:', err);
+    }
+  }, []);
+
+  const loadData = useCallback(async (targetDate = null) => {
+    setLoading(true);
+    try {
+      const dateToLoad = targetDate || currentDate;
+      const q = query(
+        collection(db, 'puzzles'),
+        where('date', '==', dateToLoad),
         limit(1)
       );
       const snap = await getDocs(q);
       if (snap && !snap.empty) {
         const doc = snap.docs[0].data();
-        setPuzzle(doc); // Set the puzzle data
+        setPuzzle(doc);
         const imgs = Array.isArray(doc.images) ? doc.images.map((img, i) => ({
           ...img,
           id: img.id ?? String(i),
@@ -102,7 +127,7 @@ export default function PlayerPageSimple() {
       console.error('Firestore read failed (continuing to local):', err);
     }
     return false;
-  }, []);
+  }, [currentDate]);
 
   const loadLocalImages = useCallback(() => {
     // fallback: local test images from public/test-images
@@ -120,19 +145,29 @@ export default function PlayerPageSimple() {
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const loaded = await loadData();
-      if (mounted) {
-        if (!loaded) {
-          loadLocalImages();
-        }
-        setLoading(false);
+      // Reset game state when date changes
+      setStatus(null);
+      setAttempts(0);
+      setGameStats({
+        startTime: Date.now(),
+        movesCount: 0,
+      });
+      
+      const success = await loadData();
+      if (!success && mounted) {
+        loadLocalImages();
       }
+      setLoading(false);
     }
     load();
     return () => {
       mounted = false;
     };
-  }, [loadData, loadLocalImages]);
+  }, [loadData, loadLocalImages, currentDate]);
+
+  useEffect(() => {
+    loadAvailableDates();
+  }, [loadAvailableDates]);
 
   const loadPlayerStats = useCallback(() => {
     try {
@@ -154,15 +189,15 @@ export default function PlayerPageSimple() {
         });
       }
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('Error loading player stats:', error);
     }
   }, []);
 
   const saveGameResult = useCallback((won) => {
     try {
-      // Load current stats
+      // Get current stats
       const savedStats = localStorage.getItem('cinesort_stats');
-      const stats = savedStats ? JSON.parse(savedStats) : {
+      const currentStats = savedStats ? JSON.parse(savedStats) : {
         played: 0,
         won: 0,
         streak: 0,
@@ -170,22 +205,20 @@ export default function PlayerPageSimple() {
       };
       
       // Update stats
-      stats.played += 1;
-      if (won) {
-        stats.won += 1;
-        stats.streak += 1;
-        stats.maxStreak = Math.max(stats.streak, stats.maxStreak);
-      } else {
-        stats.streak = 0;
-      }
+      const newStats = {
+        played: currentStats.played + 1,
+        won: currentStats.won + (won ? 1 : 0),
+        streak: won ? currentStats.streak + 1 : 0,
+        maxStreak: won ? Math.max(currentStats.maxStreak, currentStats.streak + 1) : currentStats.maxStreak
+      };
       
-      // Save updated stats
-      localStorage.setItem('cinesort_stats', JSON.stringify(stats));
+      localStorage.setItem('cinesort_stats', JSON.stringify(newStats));
       
-      // Update history
+      // Save game to history
       const history = JSON.parse(localStorage.getItem('cinesort_history') || '[]');
       const gameRecord = {
         date: new Date().toISOString(),
+        puzzleDate: currentDate,
         won,
         attempts,
         title: source === 'firestore' && puzzle ? puzzle.title : 'Demo Puzzle'
@@ -202,44 +235,79 @@ export default function PlayerPageSimple() {
     } catch (error) {
       console.error('Error saving game result:', error);
     }
-  }, [attempts, source, loadPlayerStats]);
+  }, [attempts, source, loadPlayerStats, currentDate, puzzle]);
 
   useEffect(() => {
     loadPlayerStats();
   }, [loadPlayerStats]);
 
+  // Date navigation functions
+  const goToPreviousDay = () => {
+    const currentIndex = availableDates.indexOf(currentDate);
+    if (currentIndex < availableDates.length - 1) {
+      setCurrentDate(availableDates[currentIndex + 1]);
+    }
+  };
+
+  const goToNextDay = () => {
+    const currentIndex = availableDates.indexOf(currentDate);
+    if (currentIndex > 0) {
+      setCurrentDate(availableDates[currentIndex - 1]);
+    }
+  };
+
+  const goToToday = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setCurrentDate(today);
+  };
+
+  const isToday = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    return currentDate === today;
+  };
+
+  const canGoPrevious = () => {
+    const currentIndex = availableDates.indexOf(currentDate);
+    return currentIndex < availableDates.length - 1;
+  };
+
+  const canGoNext = () => {
+    const currentIndex = availableDates.indexOf(currentDate);
+    return currentIndex > 0;
+  };
+
   function handleDragStart(event) {
     setActiveDragId(event.active.id);
+    // Clear status when dragging starts to hide visual feedback
+    setStatus(null);
   }
 
   function handleDragEnd(event) {
-    setActiveDragId(null);
     const { active, over } = event;
-    
-    if (!over || active.id === over.id) return;
-    
-    setImages((items) => {
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
-      return arrayMove(items, oldIndex, newIndex);
-    });
-    
-    setStatus(null);
-    setGameStats(prev => ({
-      ...prev,
-      movesCount: prev.movesCount + 1
-    }));
+    setActiveDragId(null);
+
+    if (active.id !== over?.id) {
+      setImages((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        
+        setGameStats(prev => ({
+          ...prev,
+          movesCount: prev.movesCount + 1
+        }));
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   }
 
   function getImageFeedback(images, originalOrder) {
-    return images.map((img, index) => {
-      const isCorrect = img.id === originalOrder[index]?.id;
-      const correctPosition = originalOrder.findIndex(orig => orig.id === img.id);
+    return images.map((img, idx) => {
+      const correctImg = originalOrder[idx];
       return {
         ...img,
-        isCorrect,
-        correctPosition,
-        currentPosition: index
+        isCorrect: img.id === correctImg?.id,
+        correctPosition: originalOrder.findIndex(origImg => origImg.id === img.id)
       };
     });
   }
@@ -295,6 +363,15 @@ export default function PlayerPageSimple() {
     }
   };
 
+  const formatDisplayDate = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-800 py-6 px-4">
       {/* Background film strip effect */}
@@ -324,6 +401,51 @@ export default function PlayerPageSimple() {
           <p className="text-slate-300 text-lg font-['Inter'] mb-3 max-w-md">
             Arrange the scenes in chronological order from earliest to latest
           </p>
+
+          {/* Date Navigation */}
+          <div className="flex items-center gap-4 mb-4 bg-black/20 rounded-lg p-3 backdrop-blur-sm border border-white/10">
+            <button
+              onClick={goToPreviousDay}
+              disabled={!canGoPrevious()}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Previous puzzle"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            <div className="text-center">
+              <div className="text-white font-semibold">
+                {formatDisplayDate(currentDate)}
+              </div>
+              {!isToday() && (
+                <div className="text-slate-300 text-sm">
+                  Previous Puzzle
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={goToNextDay}
+              disabled={!canGoNext()}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Next puzzle"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            {!isToday() && (
+              <button
+                onClick={goToToday}
+                className="ml-2 px-3 py-1 rounded-lg bg-blue-600/80 hover:bg-blue-600 text-white text-sm transition-colors"
+              >
+                Today
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Game Stats */}
@@ -382,14 +504,14 @@ export default function PlayerPageSimple() {
             className="flex items-center bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-lg text-sm transition-colors"
           >
             <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 012 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             Stats
           </button>
         </div>
       </header>
 
-      {/* Movie Title */}
+      {/* Movie Title Display */}
       {source === 'firestore' && puzzle?.title && (
         <div className="mb-6 text-center animate-fade-in">
           <div className="inline-block bg-gradient-to-r from-blue-900/80 to-indigo-900/80 backdrop-blur-sm px-6 py-3 rounded-lg border border-white/10 shadow-lg">
@@ -398,11 +520,7 @@ export default function PlayerPageSimple() {
             </h2>
             {puzzle.date && (
               <p className="text-slate-300 text-sm mt-1">
-                {new Date(puzzle.date).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+                {formatDisplayDate(puzzle.date)}
               </p>
             )}
           </div>
@@ -413,7 +531,7 @@ export default function PlayerPageSimple() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-white text-xl">Loading Today's Puzzle...</p>
+          <p className="text-white text-xl">Loading Puzzle...</p>
         </div>
       ) : (
         <>
@@ -431,7 +549,7 @@ export default function PlayerPageSimple() {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                   {images.map((img, idx) => {
-                    // Calculate feedback for this image
+                    // Calculate feedback for this image - only show when status is 'bad' (after check)
                     const isCorrect = status === 'bad' && img.id === originalOrder[idx]?.id;
                     const isIncorrect = status === 'bad' && img.id !== originalOrder[idx]?.id;
                     
@@ -448,39 +566,21 @@ export default function PlayerPageSimple() {
                           {idx + 1}
                         </div>
                         
-                        {/* Feedback border for correct/incorrect positioning */}
+                        {/* Feedback border for correct/incorrect positioning - only show when status is 'bad' */}
                         <div className={`relative ${
                           isCorrect 
-                            ? 'ring-4 ring-green-400 ring-opacity-75 rounded-lg' 
+                            ? 'ring-4 ring-green-400 ring-opacity-75' 
                             : isIncorrect 
-                              ? 'ring-4 ring-red-400 ring-opacity-75 rounded-lg'
+                              ? 'ring-4 ring-red-400 ring-opacity-75'
                               : ''
-                        }`}>
+                        } rounded-lg transition-all duration-300`}>
                           <DraggableImage
+                            key={img.id}
                             id={img.id}
                             image={img.url}
                             alt={img.alt}
-                            onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
+                            onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt })}
                           />
-                          
-                          {/* Correct checkmark for correct images */}
-                          {isCorrect && (
-                            <div className="absolute -bottom-2 -right-2 bg-green-500 text-white rounded-full p-1">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                          
-                          {/* Fullscreen icon */}
-                          <button
-                            className="absolute top-2 right-2 bg-black/40 hover:bg-blue-600 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                            onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
-                          >
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
-                            </svg>
-                          </button>
                         </div>
                       </div>
                     );
@@ -529,22 +629,15 @@ export default function PlayerPageSimple() {
                         src={img.url}
                         alt={img.alt}
                         className="w-full h-48 object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
-                        onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt || '' })}
+                        onClick={() => setLightbox({ open: true, url: img.url, alt: img.alt })}
                       />
                       
-                      {/* Correct indicator */}
-                      <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                      {/* Alt text overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <p className="text-white text-xs font-medium truncate">
+                          {img.alt}
+                        </p>
                       </div>
-                      
-                      {/* Scene description if available */}
-                      {img.alt && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                          <p className="text-white text-sm font-medium">{img.alt}</p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}

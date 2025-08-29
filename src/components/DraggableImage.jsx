@@ -36,28 +36,39 @@ const DraggableImage = ({ id, image, alt, onClick }) => {
         ${isDragging ? 'opacity-50 scale-105 shadow-2xl' : ''}
       `}
     >
-      {/* Image container - no text overlay */}
+      {/* Image container */}
       <div className="relative overflow-hidden">
         <img
           src={image}
           alt={alt}
           className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
           draggable={false}
-          onClick={onClick}
         />
         
         {/* Subtle overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         
-        {/* Drag indicator */}
-        <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+        {/* Fullscreen button - positioned in top right */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (typeof onClick === 'function') onClick();
+          }}
+          className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100"
+          title="View fullscreen"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+        </button>
+        
+        {/* Drag indicator - positioned in top left */}
+        <div className="absolute top-3 left-3 bg-black/40 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
           <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </div>
       </div>
-      
-      {/* REMOVED: Text container that showed the alt text */}
       
       {/* Dragging state overlay */}
       {isDragging && (
